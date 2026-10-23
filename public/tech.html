@@ -77,6 +77,38 @@
     .collected-stamp { color: #5cff89; font-weight: 900; font-size: 10px; text-transform: uppercase; background: rgba(92, 255, 137, 0.15); padding: 2px 6px; border-radius: 4px; letter-spacing: 0.5px; width: fit-content; margin-top: 4px; }
     
     #utilContainer { max-width: 900px; margin: 20px auto; padding: 20px; background: rgba(255,255,255,0.05); border-radius: 20px; height: 500px; }
+
+    /* Teachers & Departments Embedded Styles */
+    .teacher-dashboard-root { background:#ffffff; color:#1e293b; border-radius:12px; padding:16px; font-size:14px; }
+    .teacher-dashboard-root .tabs { display:flex; border-bottom:2px solid rgba(0,0,0,0.1); }
+    .teacher-dashboard-root .tab { padding:12px 20px; cursor:pointer; font-weight:700; color:#64748b; font-size:16px; }
+    .teacher-dashboard-root .tab.active { color:#0f172a; border-bottom:3px solid #EA0029; }
+    .teacher-dashboard-root .section { display:none; padding:16px; position:relative; }
+    .teacher-dashboard-root .section.active { display:block; }
+    #teacherSearch {
+      position:absolute; top:0; right:40px; transform:translateY(-50%);
+      padding:8px 14px; width:150px; font-size:13px; border-radius:20px;
+      background:#EA0029; border:2px solid #ad001e; color:white; outline:none; transition:0.25s; box-shadow:0 0 10px rgba(0,0,0,0.08);
+    }
+    #teacherSearch:focus { width:200px; background:#ad001e; box-shadow:0 0 14px rgba(234,0,41,0.2); }
+    #teacherSearch::placeholder { color:#f8fafc; opacity:0.9; font-size:13px; }
+    .teacher-dashboard-root table { width:100%; border-collapse:collapse; margin-top:10px; font-size:14px; color:#1e293b; }
+    .teacher-dashboard-root th, .teacher-dashboard-root td { padding:10px; text-align:left; vertical-align:top; }
+    .teacher-dashboard-root tr:not(:first-child) { border-top:1px solid rgba(0,0,0,0.08); }
+    .teacher-name { width:160px; font-size:15px; font-weight:600; white-space:nowrap; color:#0f172a; }
+    .dept-block { margin-top:20px; border-bottom:1px solid rgba(0,0,0,0.08); padding-bottom:10px; }
+    .dept-header { cursor:pointer; font-size:18px; font-weight:700; display:flex; align-items:center; gap:8px; user-select:none; margin-bottom:6px; color:#0f172a; }
+    .chevron { font-size:18px; transition:0.2s; color:#64748b; }
+    .dept-summary { font-size:13px; color:#64748b; margin-bottom:6px; }
+    .dept-content { display:none; }
+    .teacher-dashboard-root .asset-pill { display:inline-block; border-radius:6px; padding:4px 8px; margin:3px 4px 0 0; font-size:13px; font-weight:600; }
+    .teacher-dashboard-root .asset-video { background:rgba(147,51,234,0.15); color:#581c87; }
+    .teacher-dashboard-root .asset-sound { background:rgba(239,68,68,0.15); color:#991b1b; }
+    .teacher-dashboard-root .asset-lighting { background:rgba(234,179,8,0.25); color:#854d0e; }
+    .teacher-dashboard-root .asset-grip { background:rgba(59,130,246,0.15); color:#1e40af; }
+    .teacher-dashboard-root .asset-uncategorised { background:rgba(100,116,139,0.15); color:#334155; }
+    .show-all-btn { margin-top:4px; padding:4px 10px; border-radius:12px; background:#ad001e; color:#efe8ff; font-size:12px; border:none; cursor:pointer; font-weight:700; align-self:flex-end; margin-left:auto; }
+    .cat-stack { display:flex; flex-direction:column; align-items:flex-start; width:100%; gap:4px; padding-left:2px; }
   </style>
 </head>
 <body>
@@ -100,6 +132,7 @@
         <div style="display:flex; gap:12px;">
           <button id="btnUtil" onclick="switchDay('utilisation')" class="top-btn">Utilisation</button>
           <button id="btnOverview" onclick="switchDay('overview')" class="top-btn">Overview</button>
+          <button id="btnTeachers" onclick="switchDay('teachers')" class="top-btn">Teachers</button>
           <button id="btnToday" onclick="switchDay('today')" class="top-btn selected">Today</button>
           <button id="btnTomorrow" onclick="switchDay('tomorrow')" class="top-btn">Tomorrow</button>
         </div>
@@ -227,16 +260,19 @@ function switchDay(mode){
   dayMode = mode;
   window.lastStats = ""; 
   document.getElementById("btnUtil").classList.toggle("selected", mode==="utilisation");
+  document.getElementById("btnOverview").classList.toggle("selected", mode==="overview");
+  document.getElementById("btnTeachers").classList.toggle("selected", mode==="teachers");
   document.getElementById("btnToday").classList.toggle("selected", mode==="today");
   document.getElementById("btnTomorrow").classList.toggle("selected", mode==="tomorrow");
-  document.getElementById("btnOverview").classList.toggle("selected", mode==="overview");
   
   document.getElementById("weekSelectorWrap").style.display = (mode === "overview") ? "flex" : "none";
   document.getElementById("utilYearWrap").style.display = (mode === "utilisation") ? "flex" : "none";
-  document.getElementById("legendBar").style.display = (mode === "overview" || mode === "utilisation") ? "none" : "block";
+  document.getElementById("legendBar").style.display = (mode === "overview" || mode === "utilisation" || mode === "teachers") ? "none" : "block";
 
   if (mode === "utilisation") {
     fetchUtilisation();
+  } else if (mode === "teachers") {
+    loadTeachersDashboard();
   } else {
     fetchBookings();
   }
@@ -354,7 +390,6 @@ async function fetchBookings(){
         for (const b of list){
           const statusClass = b.status.toLowerCase().replace(/\s/g, '');
           
-          /* Step-based action button logic */
           let actionLabel = "";
           let actionClass = "";
           let nextState = "";
@@ -409,6 +444,221 @@ async function setReadyIn(key, minutes) {
   fetchBookings();
 }
 
+/* --- Teachers & Departments Dashboard Logic --- */
+const departmentMap = {
+  "Technical": ["Julian MacDonnell","Asya Ali-Mehmet","Elif Sengul","Joe Reardon","Max Jung","Thomas Mallen","Stefan Aitange"],
+  "Post Production": ["Adam Thomas","Oliver Turner","Lynda Boudjeltia","Scott Bromley","Paul Cousins"],
+  "Production Management": ["Poppy Coggins","Chris Leach","Emlyn Pool","Claire Wiener","Kiz Hoque"],
+  "Development": ["Lucy Jordan","Soumaya Elliott","John Wagland","Will Howie","Finn Conduct","Jack Avery"],
+  "Level 4": ["Iris Helfer","Michael Jobling","Anthony Thomas","Begum Whitehead","Lena Nix"]
+};
+
+const allowedTeachers = Object.values(departmentMap).flat();
+const CATEGORY_ORDER = {video:1, lighting:2, sound:3, grip:4, uncategorised:5};
+
+function processAssets(list){
+  const map={};
+  list.forEach(a=>{
+    if(!map[a.name]) map[a.name]={...a,count:0};
+    map[a.name].count++;
+  });
+  return Object.values(map).sort((a,b)=>{
+    const A=CATEGORY_ORDER[a.category]||999;
+    const B=CATEGORY_ORDER[b.category]||999;
+    return A===B ? a.name.localeCompare(b.name) : A-B;
+  });
+}
+
+function assetPill(a){
+  const qty=a.count>1?` ×${a.count}`:"";
+  const cat=(a.category||"uncategorised").toLowerCase();
+  return `<span class="asset-pill asset-${cat}">${a.name}${qty}</span>`;
+}
+
+let allTeacherHTML="";
+let deptOpenState={};
+
+const CAMERA_LIST = ["Sony FX9","Sony FX30","Sony A7IV","Sony A7Sii","Sony A7IV + Cage","Sony ZV-E10 II","Sony A6000"];
+const SOUND_LIST = ["Zoom F6","Zoom H5","Sony Radio Mic Kit","Sony Radio Boom Mic Receiver + Transmiter"];
+const GRIP_LIST = ["Sachtler Tripods","SmallRig shoulder Rig","SmallRig Tripod","Libec Tripod","DJI RS 4","DJI RS4 PRO COMBO","DJI RS 3","DJI Ronin S","Easyrig"];
+
+async function loadTeachersDashboard() {
+  tableWrap.innerHTML = `
+    <div class="teacher-dashboard-root">
+      <div class="tabs">
+        <div class="tab active" data-target="teachersTab" onclick="switchTeacherTab('teachersTab')">Teachers</div>
+        <div class="tab" data-target="departmentsTab" onclick="switchTeacherTab('departmentsTab')">Departments</div>
+      </div>
+      <main style="padding:16px 0;">
+        <div id="teachersTab" class="section active">
+          <input id="teacherSearch" placeholder="Search…" oninput="filterTeachers()">
+          <h2 style="font-size:18px;margin-top:20px;color:#0f172a;">Teachers</h2>
+          <div id="teacherTable"></div>
+        </div>
+        <div id="departmentsTab" class="section">
+          <h2 style="font-size:18px;color:#0f172a;">Departments</h2>
+          <div id="departmentWrap"></div>
+        </div>
+      </main>
+    </div>
+  `;
+
+  try {
+    const resp = await fetch('/api/bookings-all');
+    const data = await resp.json();
+    const bookings = data.bookings || [];
+
+    const relevant = bookings.filter(b=>allowedTeachers.includes(b.username));
+    const byTeacher={};
+    allowedTeachers.forEach(t=>byTeacher[t]=[]);
+    relevant.forEach(b=>b.assets.forEach(a=>byTeacher[b.username].push(a)));
+
+    let html="";
+    Object.keys(departmentMap).forEach(dept=>{
+      const teachers=departmentMap[dept].slice().sort((a,b)=>a.localeCompare(b));
+      const deptItems=[];
+      teachers.forEach(t=>deptItems.push(...byTeacher[t]));
+
+      const open = deptOpenState[dept] ?? false;
+
+      html+=`
+        <div class="dept-block">
+          <div class="dept-header" onclick="toggleDept('${dept}')">
+            <span class="chevron">${open ? "▾" : "▸"}</span> ${dept}
+          </div>
+          <div class="dept-summary">${teachers.length} teachers — ${deptItems.length} items</div>
+          <div class="dept-content" id="dept-${dept}" style="display:${open?"block":"none"};">
+            <table>
+              <thead><tr><th>Teacher</th><th>Equipment</th></tr></thead>
+              <tbody>
+      `;
+
+      teachers.forEach(name=>{
+        const assets=processAssets(byTeacher[name]);
+        const pillHTML=assets.length ? assets.map(assetPill).join("") : "<i>No equipment</i>";
+        html+=`
+          <tr data-teacher="${name.toLowerCase()}">
+            <td class="teacher-name">${name}</td>
+            <td>${pillHTML}</td>
+          </tr>
+        `;
+      });
+
+      html+=`
+              </tbody>
+            </table>
+          </div>
+        </div>
+      `;
+    });
+
+    allTeacherHTML=html;
+    const tTable = document.getElementById("teacherTable");
+    if (tTable) tTable.innerHTML = html;
+
+    const dWrap = document.getElementById("departmentWrap");
+    if (dWrap) dWrap.innerHTML = buildDepartments(byTeacher);
+    syncRotatedLayout();
+  } catch (err) { console.error("Teachers dashboard load failed", err); }
+}
+
+function switchTeacherTab(targetId) {
+  document.querySelectorAll('.teacher-dashboard-root .tab').forEach(t=>t.classList.remove('active'));
+  document.querySelectorAll('.teacher-dashboard-root .section').forEach(s=>s.classList.remove('active'));
+  const clickedTab = document.querySelector(`.teacher-dashboard-root .tab[data-target="${targetId}"]`);
+  if (clickedTab) clickedTab.classList.add('active');
+  const targetSec = document.getElementById(targetId);
+  if (targetSec) targetSec.classList.add('active');
+  syncRotatedLayout();
+}
+
+function buildDepartments(byTeacher){
+  let html="";
+  Object.keys(departmentMap).forEach(dept=>{
+    const allItems=[];
+    departmentMap[dept].forEach(t=>allItems.push(...byTeacher[t]));
+    const processed = processAssets(allItems);
+
+    const cams = processed.filter(a => CAMERA_LIST.includes(a.name));
+    const snd  = processed.filter(a => SOUND_LIST.includes(a.name));
+    const grip = processed.filter(a => GRIP_LIST.includes(a.name));
+    const light = processed.filter(a => a.category==="lighting");
+
+    const show = deptOpenState[`show_${dept}`] ?? false;
+
+    html += `
+      <div class="dept-block">
+        <div class="dept-header">${dept}</div>
+        <div class="cat-stack">
+          <div>${cams.map(assetPill).join("")}</div>
+          <div>${snd.map(assetPill).join("")}</div>
+          <div>${light.map(assetPill).join("")}</div>
+          <div>${grip.map(assetPill).join("")}</div>
+          <button class="show-all-btn" onclick="toggleShowAll('${dept}')">
+            ${show ? "Hide" : "Show All"}
+          </button>
+        </div>
+        <div id="dept-all-${dept}" style="display:${show?'block':'none'};margin-top:10px;">
+          ${processed.map(assetPill).join("")}
+        </div>
+      </div>
+    `;
+  });
+  return html;
+}
+
+function toggleDept(dept){
+  deptOpenState[dept] = !deptOpenState[dept];
+  loadTeachersDashboard();
+}
+
+function toggleShowAll(dept){
+  deptOpenState[`show_${dept}`] = !deptOpenState[`show_${dept}`];
+  loadTeachersDashboard();
+}
+
+function filterTeachers(){
+  const searchInput = document.getElementById("teacherSearch");
+  if (!searchInput) return;
+  const q = searchInput.value.trim().toLowerCase();
+  const container = document.getElementById("teacherTable");
+  if(!container) return;
+
+  if(q===""){
+    container.innerHTML = allTeacherHTML;
+    return;
+  }
+
+  const temp = document.createElement("div");
+  temp.innerHTML = allTeacherHTML;
+
+  temp.querySelectorAll(".dept-block").forEach(block=>{
+    const rows = block.querySelectorAll("tbody tr");
+    let matches = 0;
+
+    rows.forEach(row=>{
+      if(row.dataset.teacher && row.dataset.teacher.includes(q)){
+        row.style.display = "";
+        matches++;
+      } else {
+        row.style.display = "none";
+      }
+    });
+
+    const content = block.querySelector(".dept-content");
+    const chevron = block.querySelector(".chevron");
+
+    if(matches === 0){
+      block.style.display = "none";
+    } else {
+      block.style.display = "";
+      if(content) content.style.display = "block";
+      if(chevron) chevron.textContent = "▾";
+    }
+  });
+  container.innerHTML = temp.innerHTML;
+}
+
 getScrollWrap().addEventListener("wheel", (e) => {
   if (drawingEnabled) return;
   const delta = Math.abs(e.deltaY) >= Math.abs(e.deltaX) ? e.deltaY : e.deltaX;
@@ -418,7 +668,7 @@ getScrollWrap().addEventListener("wheel", (e) => {
 window.addEventListener("resize", syncRotatedLayout);
 initYearPicker();
 setInterval(() => {
-    if (dayMode !== "utilisation") fetchBookings();
+    if (dayMode !== "utilisation" && dayMode !== "teachers") fetchBookings();
 }, 10000);
 fetchBookings();
 </script>
